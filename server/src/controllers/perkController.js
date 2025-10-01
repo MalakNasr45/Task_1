@@ -69,9 +69,32 @@ export async function createPerk(req, res, next) {
 }
 // TODO
 // Update an existing perk by ID and validate only the fields that are being updated 
+// Update an existing perk by ID
 export async function updatePerk(req, res, next) {
-  
+  try {
+    // Make all schema fields optional for update
+    const updateSchema = perkSchema.fork(Object.keys(perkSchema.describe().keys), field => field.optional());
+
+    // Validate request body
+    const { value, error } = updateSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.message });
+
+    // Find the perk by ID and update with provided fields
+    const updatedPerk = await Perk.findByIdAndUpdate(
+      req.params.id,
+      { $set: value },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedPerk) return res.status(404).json({ message: 'Perk not found' });
+
+    res.status(200).json({ perk: updatedPerk });
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ message: 'Duplicate perk for this merchant' });
+    next(err);
+  }
 }
+
 
 
 // Delete a perk by ID
